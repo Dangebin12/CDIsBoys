@@ -1,0 +1,46 @@
+// Esquema del área de seguridad: usuarios, roles y permisos.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  nombre       String
+  passwordHash String
+  activo       Boolean  @default(true)
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
+  creadoEn     DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([roleId])
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  nombre      String       @unique
+  descripcion String
+  // Un rol del sistema no se puede borrar ni renombrar desde la interfaz.
+  esSistema   Boolean      @default(false)
+  usuarios    User[]
+  permisos    Permission[] @relation("RolePermissions")
+  creadoEn    DateTime     @default(now())
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  // Código estable que se consulta en el código, p. ej. "usuarios.crear".
+  codigo      String   @unique
+  descripcion String
+  // Agrupa los permisos en la interfaz: "Usuarios", "Roles", "Niños"...
+  modulo      String
+  roles       Role[]   @relation("RolePermissions")
+
+  @@index([modulo])
+}

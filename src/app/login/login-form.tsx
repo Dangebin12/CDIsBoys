@@ -1,8 +1,10 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { login } from './actions'
 
 const loginSchema = z.object({
   email: z.email('Ingresa un correo válido.'),
@@ -18,12 +20,21 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors },
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
+  const [pendiente, startTransition] = useTransition()
+  const [errorServidor, setErrorServidor] = useState<string | null>(null)
 
-  // Sin backend todavía: sólo valida y confirma. Conectar aquí la autenticación real.
-  async function onSubmit(values: LoginValues) {
-    console.info('login enviado', values.email)
+  function onSubmit(values: LoginValues) {
+    setErrorServidor(null)
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set('email', values.email)
+      formData.set('password', values.password)
+      // Si las credenciales son correctas la acción redirige y no retorna.
+      const resultado = await login({}, formData)
+      if (resultado?.error) setErrorServidor(resultado.error)
+    })
   }
 
   return (
@@ -73,19 +84,22 @@ export function LoginForm() {
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full rounded-lg bg-sky-600 px-4 py-2.5 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-60"
-      >
-        {isSubmitting ? 'Entrando…' : 'Entrar'}
-      </button>
-
-      {isSubmitSuccessful && (
-        <p role="status" className="text-center text-sm text-green-700 dark:text-green-400">
-          Datos válidos. Falta conectar la autenticación.
+      {errorServidor && (
+        <p
+          role="alert"
+          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+        >
+          {errorServidor}
         </p>
       )}
+
+      <button
+        type="submit"
+        disabled={pendiente}
+        className="w-full rounded-lg bg-sky-600 px-4 py-2.5 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-60"
+      >
+        {pendiente ? 'Entrando…' : 'Entrar'}
+      </button>
     </form>
   )
 }
